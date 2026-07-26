@@ -1,4 +1,14 @@
-# Pegma
+<picture>
+  <source
+    media="(prefers-color-scheme: dark)"
+    srcset="https://raw.githubusercontent.com/pegma-dev/.github/main/brand/pegma-lockup-horizontal-white-1600.png"
+  />
+  <img
+    src="https://raw.githubusercontent.com/pegma-dev/.github/main/brand/pegma-lockup-horizontal-1600.png"
+    alt="Pegma"
+    width="360"
+  />
+</picture>
 
 Composable, MIT-licensed components for building web applications — designed
 to be assembled and maintained by AI coding agents.
