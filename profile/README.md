@@ -33,12 +33,18 @@ reused — not re-rolled per project.
 
 ## Components
 
-| Package                       | Purpose                                             | Status      |
-| ----------------------------- | --------------------------------------------------- | ----------- |
-| `@pegma/spine`                | Shared identity, time, logging, and event contracts | in progress |
-| `@pegma/storage-core`         | Schema-agnostic persistence with declared collections | planned   |
-| `@pegma/authorization-core`   | Permission and entitlement resolution                | planned     |
-| `@pegma/support-desk-core`    | Ticket and message workflow                          | planned     |
+| Package                       | Purpose                                               | Status      |
+| ----------------------------- | ----------------------------------------------------- | ----------- |
+| `@pegma/spine`                | Shared identity, time, logging, and event contracts   | published   |
+| `@pegma/storage-core`         | Schema-agnostic persistence with declared collections | published   |
+| `@pegma/storage-azure-tables` | Azure Table Storage adapter                           | published   |
+| `@pegma/audit`                | Append-only audit records                             | published   |
+| `@pegma/authorization-core`   | Permission and entitlement resolution                 | in progress |
+| `@pegma/support-desk-core`    | Ticket and message workflow                           | in progress |
+
+Every published package is released only from its repository's workflow on a
+short-lived OIDC credential, with a provenance attestation linking the tarball
+to the commit that built it. No long-lived publish tokens exist.
 
 Components depend on `@pegma/spine` and, where they persist anything, on
 `@pegma/storage-core`. They do not depend on each other.
