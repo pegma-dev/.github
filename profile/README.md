@@ -46,6 +46,9 @@ reused — not re-rolled per project.
 | `@pegma/rate-limit`           | Honest two-tier request limiting                      | planned     |
 | `@pegma/identity`             | First-party identity: passkeys-first, no passwords    | planned     |
 | `@pegma/mail`                 | Transactional mail: an outbox that owns no store      | planned     |
+| `@pegma/logger-tee`            | Fan-out Spine Logger to multiple sinks                | planned     |
+| `@pegma/logger-applicationinsights` | Spine Logger to Application Insights             | planned     |
+| `@pegma/logger-cloudflare`      | Spine Logger to Cloudflare Workers Logs               | planned     |
 
 Planned components carry a published plan and a deliberate gate; each
 repository's `docs/PROJECT_PLAN.md` is the source of truth, and the
