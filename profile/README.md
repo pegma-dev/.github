@@ -33,23 +33,23 @@ reused — not re-rolled per project.
 
 ## Components
 
-| Package                       | Purpose                                               | Status      |
-| ----------------------------- | ----------------------------------------------------- | ----------- |
-| `@pegma/spine`                | Shared identity, time, logging, and event contracts   | published   |
-| `@pegma/storage-core`         | Schema-agnostic persistence with declared collections | published   |
-| `@pegma/storage-azure-tables` | Azure Table Storage adapter                           | published   |
-| `@pegma/audit`                | Append-only audit records                             | published   |
-| `@pegma/authorization-core`   | Permission and entitlement resolution                 | in progress |
-| `@pegma/support-desk-core`    | Ticket and message workflow                           | in progress |
-| `@pegma/webhooks`             | Inbound webhook receipts: dedup, quarantine, retention | planned    |
-| `@pegma/sessions`             | Server-side session records: hashed ids, dual expiry  | planned     |
-| `@pegma/rate-limit`           | Honest two-tier request limiting                      | planned     |
-| `@pegma/identity`             | First-party identity: passkeys-first, no passwords    | planned     |
-| `@pegma/mail`                 | Transactional mail: an outbox that owns no store      | planned     |
-| `@pegma/logger-tee`            | Fan-out Spine Logger to multiple sinks                | planned     |
-| `@pegma/logger-applicationinsights` | Spine Logger to Application Insights             | planned     |
-| `@pegma/logger-cloudflare`      | Spine Logger to Cloudflare Workers Logs               | planned     |
-| `@pegma/logger-datadog`          | Spine Logger to Datadog logs                          | planned     |
+| Package                             | Purpose                                               | Status      |
+| ----------------------------------- | ----------------------------------------------------- | ----------- |
+| `@pegma/spine`                      | Shared identity, time, logging, and event contracts   | published   |
+| `@pegma/storage-core`               | Schema-agnostic persistence with declared collections | published   |
+| `@pegma/storage-azure-tables`       | Azure Table Storage adapter                           | published   |
+| `@pegma/audit`                      | Append-only audit records                             | published   |
+| `@pegma/logger-tee`                 | Fan-out Spine Logger to multiple sinks                | published   |
+| `@pegma/logger-applicationinsights` | Spine Logger to Application Insights                  | published   |
+| `@pegma/logger-cloudflare`          | Spine Logger to Cloudflare Workers Logs               | published   |
+| `@pegma/logger-datadog`             | Spine Logger to Datadog logs                          | published   |
+| `@pegma/authorization-core`         | Permission and entitlement resolution                 | in progress |
+| `@pegma/support-desk-core`          | Ticket and message workflow                           | in progress |
+| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | planned    |
+| `@pegma/sessions`                   | Server-side session records: hashed ids, dual expiry  | planned     |
+| `@pegma/rate-limit`                 | Honest two-tier request limiting                      | planned     |
+| `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | planned     |
+| `@pegma/mail`                       | Transactional mail: an outbox that owns no store      | planned     |
 
 Planned components carry a published plan and a deliberate gate; each
 repository's `docs/PROJECT_PLAN.md` is the source of truth, and the
