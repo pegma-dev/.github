@@ -11,11 +11,11 @@
 </picture>
 
 Composable, MIT-licensed components for building web applications — designed
-to be assembled and maintained by AI coding agents.
+to be assembled and maintained by AI coding agents. **[pegma.dev](https://pegma.dev)**
 
 > [!IMPORTANT]
-> Pegma is in early development. Nothing is published to npm yet, no public
-> API is stable, and none of it is ready for production use.
+> Pegma is in early development. The first `0.x` packages are on npm, but no
+> public API is stable and none of it is ready for production use.
 
 ## The idea
 
@@ -41,6 +41,16 @@ reused — not re-rolled per project.
 | `@pegma/audit`                | Append-only audit records                             | published   |
 | `@pegma/authorization-core`   | Permission and entitlement resolution                 | in progress |
 | `@pegma/support-desk-core`    | Ticket and message workflow                           | in progress |
+| `@pegma/webhooks`             | Inbound webhook receipts: dedup, quarantine, retention | planned    |
+| `@pegma/sessions`             | Server-side session records: hashed ids, dual expiry  | planned     |
+| `@pegma/rate-limit`           | Honest two-tier request limiting                      | planned     |
+| `@pegma/identity`             | First-party identity: passkeys-first, no passwords    | planned     |
+| `@pegma/mail`                 | Transactional mail: an outbox that owns no store      | planned     |
+
+Planned components carry a published plan and a deliberate gate; each
+repository's `docs/PROJECT_PLAN.md` is the source of truth, and the
+[pegma.dev roadmap](https://pegma.dev/roadmap) compiles those plans at build
+time.
 
 Every published package is released only from its repository's workflow on a
 short-lived OIDC credential, with a provenance attestation linking the tarball
