@@ -45,7 +45,7 @@ reused — not re-rolled per project.
 | `@pegma/logger-datadog`             | Spine Logger to Datadog logs                          | published   |
 | `@pegma/authorization-core`         | Permission and entitlement resolution                 | in progress |
 | `@pegma/support-desk-core`          | Ticket and message workflow                           | in progress |
-| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | planned    |
+| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | in progress |
 | `@pegma/sessions`                   | Server-side session records: hashed ids, dual expiry  | planned     |
 | `@pegma/rate-limit`                 | Honest two-tier request limiting                      | planned     |
 | `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | planned     |
@@ -55,6 +55,10 @@ Planned components carry a published plan and a deliberate gate; each
 repository's `docs/PROJECT_PLAN.md` is the source of truth, and the
 [pegma.dev roadmap](https://pegma.dev/roadmap) compiles those plans at build
 time.
+
+Webhooks Phase 2 is implemented and merged into RetireGolden. Its operational
+exit still awaits observed production Stripe traffic, and Phase 3 is gated on
+a second real non-Stripe provider. `@pegma/webhooks` remains unpublished.
 
 Every published package is released only from its repository's workflow on a
 short-lived OIDC credential, with a provenance attestation linking the tarball
