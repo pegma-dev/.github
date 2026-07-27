@@ -49,6 +49,7 @@ reused — not re-rolled per project.
 | `@pegma/logger-tee`            | Fan-out Spine Logger to multiple sinks                | planned     |
 | `@pegma/logger-applicationinsights` | Spine Logger to Application Insights             | planned     |
 | `@pegma/logger-cloudflare`      | Spine Logger to Cloudflare Workers Logs               | planned     |
+| `@pegma/logger-datadog`          | Spine Logger to Datadog logs                          | planned     |
 
 Planned components carry a published plan and a deliberate gate; each
 repository's `docs/PROJECT_PLAN.md` is the source of truth, and the
