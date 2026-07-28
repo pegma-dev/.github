@@ -19,10 +19,10 @@ to be assembled and maintained by AI coding agents. **[pegma.dev](https://pegma.
 
 ## The idea
 
-Most of what a site needs has been built ten thousand times: accounts,
-authorization, a support queue, a blog, billing. Rebuilding them per project
-is expensive, and having an agent generate them from scratch each time is
-worse — thousands of lines of novel, unverified logic, different every run.
+Most of what a site needs has been built ten thousand times: sessions, audit
+trails, persistence, health probes, structured logging. Rebuilding them per
+project is expensive, and having an agent generate them from scratch each time
+is worse — thousands of lines of novel, unverified logic, different every run.
 
 Pegma takes the other path. Each capability is an independent package with a
 typed contract and a published conformance suite. Building a site becomes
@@ -90,9 +90,12 @@ Components depend on `@pegma/spine` and, where they persist anything, on
 
 ## Provenance
 
-The name is Latin, borrowed from Greek πῆγμα: a framework fastened together,
-and in Roman amphitheatres a machine-operated scaffold that raised the scenery
-into place.
+The name is Latin, borrowed from Greek πῆγμα (from πήγνυμι, “to fasten
+together”): a framework of joined parts. In Roman amphitheatres the same word
+named a machine-operated scaffold — multi-stage wooden machinery raised and
+lowered by ropes and counterweights — that brought scenery and performers into
+view. Pegma is that kind of thing: independent pieces fastened together, raised
+into place by the agent that assembles them.
 
 Pegma is developed by [RetireGolden, LLC](https://retiregolden.org), which
 uses these components in production. The projects are deliberately not
