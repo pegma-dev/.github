@@ -39,11 +39,11 @@ reused — not re-rolled per project.
 | `@pegma/storage-core`               | Schema-agnostic persistence with declared collections | published   |
 | `@pegma/storage-azure-tables`       | Azure Table Storage adapter                           | published   |
 | `@pegma/audit`                      | Append-only audit records                             | published   |
-| `@pegma/health`                     | Composable health probes and public liveness responses | in progress |
 | `@pegma/logger-tee`                 | Fan-out Spine Logger to multiple sinks                | published   |
 | `@pegma/logger-applicationinsights` | Spine Logger to Application Insights                  | published   |
 | `@pegma/logger-cloudflare`          | Spine Logger to Cloudflare Workers Logs               | published   |
 | `@pegma/logger-datadog`             | Spine Logger to Datadog logs                          | published   |
+| `@pegma/health`                     | Composable health probes and public liveness responses | in progress |
 | `@pegma/authorization-core`         | Permission and entitlement resolution                 | in progress |
 | `@pegma/support-desk-core`          | Ticket and message workflow                           | in progress |
 | `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | in progress |
