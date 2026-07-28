@@ -60,7 +60,7 @@ Webhooks Phase 2 is implemented and merged into RetireGolden. Its operational
 exit still awaits observed production Stripe traffic, and Phase 3 is gated on
 a second real non-Stripe provider. `@pegma/webhooks` remains unpublished.
 
-Sessions Phase 1 is merged, and Phase 2 is in review as the first RetireGolden
+Sessions Phase 1 is merged, and Phase 2 is merged as the first RetireGolden
 consumer migration. `@pegma/sessions` remains unpublished.
 
 Every published package is released only from its repository's workflow on a
