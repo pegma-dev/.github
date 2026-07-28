@@ -14,8 +14,8 @@ Composable, MIT-licensed components for building web applications — designed
 to be assembled and maintained by AI coding agents. **[pegma.dev](https://pegma.dev)**
 
 > [!IMPORTANT]
-> Pegma is in early development. The first `0.x` packages are on npm, but no
-> public API is stable and none of it is ready for production use.
+> Pegma is in early development. Published packages remain unstable `0.x`
+> APIs; adopters must pin exact versions and own their deployment review.
 
 ## The idea
 
@@ -38,6 +38,7 @@ reused — not re-rolled per project.
 | `@pegma/spine`                      | Shared identity, time, logging, and event contracts   | published   |
 | `@pegma/storage-core`               | Schema-agnostic persistence with declared collections | published   |
 | `@pegma/storage-azure-tables`       | Azure Table Storage adapter                           | published   |
+| `@pegma/storage-cloudflare-d1`      | Cloudflare D1 adapter                                 | published   |
 | `@pegma/audit`                      | Append-only audit records                             | published   |
 | `@pegma/logger-tee`                 | Fan-out Spine Logger to multiple sinks                | published   |
 | `@pegma/logger-applicationinsights` | Spine Logger to Application Insights                  | published   |
@@ -45,32 +46,42 @@ reused — not re-rolled per project.
 | `@pegma/logger-datadog`             | Spine Logger to Datadog logs                          | published   |
 | `@pegma/health`                     | Composable health probes and public liveness responses | published   |
 | `@pegma/sessions`                   | Server-side session records: hashed ids, dual expiry  | published   |
-| `@pegma/authorization-core`         | Permission and entitlement resolution                 | in progress |
-| `@pegma/support-desk-core`          | Ticket and message workflow                           | in progress |
-| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | in progress |
-| `@pegma/rate-limit`                 | Honest two-tier request limiting                      | planned     |
-| `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | planned     |
-| `@pegma/mail`                       | Transactional mail: an outbox that owns no store      | planned     |
+| `@pegma/authorization-core`         | Permission and entitlement resolution                 | published   |
+| `@pegma/authorization-identity`     | Verified Identity claims adapter                      | published   |
+| `@pegma/support-desk-*`             | Ticket, application, mail, and template source        | unpublished |
+| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | unpublished |
+| `@pegma/rate-limit`                 | Honest two-tier request limiting                      | published   |
+| `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | published   |
+| `@pegma/mail`                       | Transactional mail: an outbox that owns no store      | published   |
 
-Planned components carry a published plan and a deliberate gate; each
-repository's `docs/PROJECT_PLAN.md` is the source of truth, and the
+Each component's `docs/PROJECT_PLAN.md` is the source of truth, and the
 [pegma.dev roadmap](https://pegma.dev/roadmap) compiles those plans at build
 time.
+
+The 2026-07-28 Identity batch published `@pegma/rate-limit@0.1.0`,
+`@pegma/mail@0.1.0`, `@pegma/identity@0.1.0`, and the synchronized
+Authorization Core `0.1.2` package set containing
+`@pegma/authorization-identity`. `@pegma/sessions@0.1.0` and the Storage Core
+`0.4.0` D1 adapter complete the composition now running on pegma.dev.
+
+Support Desk now implements its customer application slice and
+provider-neutral outbound-mail integration against exact `@pegma/mail@0.1.0`.
+Its four packages remain unpublished until the deployment and hardening phases.
 
 Webhooks Phase 2 is implemented and merged into RetireGolden. Its operational
 exit still awaits observed production Stripe traffic, and Phase 3 is gated on
 a second real non-Stripe provider. `@pegma/webhooks` remains unpublished.
 
-Sessions Phase 1 is merged, and Phase 2 is merged as the first RetireGolden
-consumer migration. `@pegma/sessions` is published as `0.1.0`, and its early
-`0.x` API remains unstable.
+Normal releases use repository workflows with short-lived OIDC authority and
+provenance attestations; no long-lived publish tokens exist. Sessions `0.1.0`
+is the documented legacy exception: its initial workflow failed before the npm
+name existed, so the exact artifact was published manually without provenance.
+Sessions releases from `0.1.1` onward use the hardened OIDC path.
 
-Every published package is released only from its repository's workflow on a
-short-lived OIDC credential, with a provenance attestation linking the tarball
-to the commit that built it. No long-lived publish tokens exist.
-
-Components depend on `@pegma/spine` and, where they persist anything, on
-`@pegma/storage-core`. They do not depend on each other.
+Components share contracts through `@pegma/spine` and, where they persist
+anything, use `@pegma/storage-core`. Narrow sibling dependencies are added only
+when real consumers justify them—for example Identity composes Mail and Rate
+Limit—then pinned exactly and wired explicitly at the host boundary.
 
 ## Design principles
 
