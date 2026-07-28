@@ -49,7 +49,7 @@ reused — not re-rolled per project.
 | `@pegma/authorization-core`         | Permission and entitlement resolution                 | published   |
 | `@pegma/authorization-identity`     | Verified Identity claims adapter                      | published   |
 | `@pegma/support-desk-*`             | Ticket, application, mail, and template source        | unpublished |
-| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | in progress |
+| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | unpublished |
 | `@pegma/rate-limit`                 | Honest two-tier request limiting                      | published   |
 | `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | published   |
 | `@pegma/mail`                       | Transactional mail: an outbox that owns no store      | published   |
