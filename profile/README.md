@@ -43,11 +43,11 @@ reused — not re-rolled per project.
 | `@pegma/logger-applicationinsights` | Spine Logger to Application Insights                  | published   |
 | `@pegma/logger-cloudflare`          | Spine Logger to Cloudflare Workers Logs               | published   |
 | `@pegma/logger-datadog`             | Spine Logger to Datadog logs                          | published   |
-| `@pegma/health`                     | Composable health probes and public liveness responses | in progress |
+| `@pegma/health`                     | Composable health probes and public liveness responses | published   |
+| `@pegma/sessions`                   | Server-side session records: hashed ids, dual expiry  | published   |
 | `@pegma/authorization-core`         | Permission and entitlement resolution                 | in progress |
 | `@pegma/support-desk-core`          | Ticket and message workflow                           | in progress |
 | `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | in progress |
-| `@pegma/sessions`                   | Server-side session records: hashed ids, dual expiry  | published   |
 | `@pegma/rate-limit`                 | Honest two-tier request limiting                      | planned     |
 | `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | planned     |
 | `@pegma/mail`                       | Transactional mail: an outbox that owns no store      | planned     |
