@@ -53,7 +53,7 @@ reused — not re-rolled per project.
 | `@pegma/authorization-core`         | Permission and entitlement resolution                 | published   |
 | `@pegma/authorization-identity`     | Verified Identity claims adapter                      | published   |
 | `@pegma/support-desk-*`             | Ticket, application, mail, and template source        | unpublished |
-| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | unpublished |
+| `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | published   |
 | `@pegma/rate-limit`                 | Honest two-tier request limiting                      | published   |
 | `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | published   |
 | `@pegma/mail`                       | Transactional mail: an outbox that owns no store      | published   |
@@ -76,9 +76,10 @@ Support Desk now implements its customer application slice and
 provider-neutral outbound-mail integration against exact `@pegma/mail@0.1.0`.
 Its four packages remain unpublished until the deployment and hardening phases.
 
-Webhooks Phase 2 is implemented and merged into RetireGolden. Its operational
-exit still awaits observed production Stripe traffic, and Phase 3 is gated on
-a second real non-Stripe provider. `@pegma/webhooks` remains unpublished.
+Webhooks Phases 1–4 are complete. `@pegma/webhooks@0.1.0` was published from a
+signed `v0.1.0` tag with trusted-publisher provenance after validation in two
+real integrations: Stripe on RetireGolden and GitHub Releases on pegma.dev.
+Its `0.x` API remains intentionally unstable.
 
 Normal releases use repository workflows with short-lived OIDC authority and
 provenance attestations; no long-lived publish tokens exist. Sessions `0.1.0`
