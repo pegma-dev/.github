@@ -39,6 +39,10 @@ reused — not re-rolled per project.
 | `@pegma/storage-core`               | Schema-agnostic persistence with declared collections | published   |
 | `@pegma/storage-azure-tables`       | Azure Table Storage adapter                           | published   |
 | `@pegma/storage-cloudflare-d1`      | Cloudflare D1 adapter                                 | published   |
+| `@pegma/storage-blobs`              | Provider-neutral object (blob) storage port           | published   |
+| `@pegma/storage-azure-blob`         | Azure Blob Storage adapter                            | published   |
+| `@pegma/storage-cloudflare-r2`      | Cloudflare R2 adapter                                 | published   |
+| `@pegma/storage-s3`                 | AWS S3 / S3-compatible adapter                        | published   |
 | `@pegma/audit`                      | Append-only audit records                             | published   |
 | `@pegma/logger-tee`                 | Fan-out Spine Logger to multiple sinks                | published   |
 | `@pegma/logger-applicationinsights` | Spine Logger to Application Insights                  | published   |
@@ -63,6 +67,10 @@ The 2026-07-28 Identity batch published `@pegma/rate-limit@0.1.0`,
 Authorization Core `0.1.2` package set containing
 `@pegma/authorization-identity`. `@pegma/sessions@0.1.0` and the Storage Core
 `0.4.0` D1 adapter complete the composition now running on pegma.dev.
+
+The 2026-07-29 Storage Blobs first release published
+`@pegma/storage-blobs@0.1.0` with Azure Blob, Cloudflare R2, and S3 adapters
+at the same version (signed `v0.1.0`, trusted-publisher provenance).
 
 Support Desk now implements its customer application slice and
 provider-neutral outbound-mail integration against exact `@pegma/mail@0.1.0`.
