@@ -52,12 +52,12 @@ jobs:
         run: |
           mkdir -p "$HOME/.grok"
           cat > "$HOME/.grok/config.toml" <<'EOF'
-          [model.grok-build]
-          model = "grok-build"
+          [model.grok-4.6]
+          model = "grok-4.6"
           base_url = "https://api.x.ai/v1"
           env_key = "XAI_API_KEY"
           [models]
-          default = "grok-build"
+          default = "grok-4.6"
           EOF
 
       - name: Run Grok Build review
@@ -69,6 +69,7 @@ jobs:
           grok_auth_json: "{}"
           github_token: ${{ github.token }}
           pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          model: grok-4.6
           roast_level: professional
           fail_on: never
           status_comments: "true"
