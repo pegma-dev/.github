@@ -1,7 +1,7 @@
 # Organization-required Grok Build PR review.
 # Enforced via org ruleset "Require Grok code review" pointing at this file.
-# Secrets: org-level XAI_API_KEY (preferred; CLI env_key) and GROK_AUTH_JSON
-# (fallback; contents of ~/.grok/auth.json after `grok login`).
+# Auth: org-level XAI_API_KEY only (CLI env_key + https://api.x.ai/v1).
+# No SuperGrok session fallback.
 name: Grok code review
 
 on:
@@ -40,24 +40,36 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Require XAI_API_KEY
+        run: |
+          if [ -z "${XAI_API_KEY}" ]; then
+            echo "::error::XAI_API_KEY is empty. Set the org-level XAI_API_KEY secret. This workflow does not fall back to SuperGrok session auth."
+            exit 1
+          fi
+
       - name: Write Grok API key config
         if: ${{ env.XAI_API_KEY != '' }}
         run: |
           mkdir -p "$HOME/.grok"
           cat > "$HOME/.grok/config.toml" <<'EOF'
-          [model.grok-build]
+          [model."grok-4.6"]
+          model = "grok-4.6"
+          base_url = "https://api.x.ai/v1"
           env_key = "XAI_API_KEY"
           [models]
-          default = "grok-build"
+          default = "grok-4.6"
           EOF
 
       - name: Run Grok Build review
         id: grok
         uses: 0xr3ngar/grok-build-review-action@eded30018cdee4e83dfca14d18f292b860c30cdd # v1.0.2
         with:
-          grok_auth_json: ${{ secrets.GROK_AUTH_JSON }}
+          # Action requires this input and writes ~/.grok/auth.json. Dummy JSON
+          # satisfies the composite; real auth is config.toml + XAI_API_KEY.
+          grok_auth_json: "{}"
           github_token: ${{ github.token }}
           pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          model: grok-4.6
           roast_level: professional
           fail_on: never
           status_comments: "true"
