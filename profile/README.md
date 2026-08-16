@@ -53,7 +53,10 @@ reused — not re-rolled per project.
 | `@pegma/sessions`                   | Server-side session records: hashed ids, dual expiry  | published   |
 | `@pegma/authorization-core`         | Permission and entitlement resolution                 | published   |
 | `@pegma/authorization-identity`     | Verified Identity claims adapter                      | published   |
-| `@pegma/support-desk-*`             | Ticket, application, mail, and template source        | unpublished |
+| `@pegma/support-desk-contracts`     | Ticket, message, requester, and event types           | published   |
+| `@pegma/support-desk-core`          | Ticket creation and workflow transitions              | published   |
+| `@pegma/support-desk-application`   | Customer services, collections, audit, and outbox     | published   |
+| `@pegma/support-desk-templates`     | Versioned notification templates                      | published   |
 | `@pegma/webhooks`                   | Inbound webhook receipts: dedup, quarantine, retention | published   |
 | `@pegma/rate-limit`                 | Honest two-tier request limiting                      | published   |
 | `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | published   |
@@ -94,9 +97,12 @@ The 2026-08-15 0.1.1 batch published `@pegma/cache-core@0.1.1`,
 adapters and contracts. The sixteen public cache, flags, and billing
 packages are on npm at `latest=0.1.1`. `0.0.0` was bootstrap only.
 
-Support Desk now implements its customer application slice and
-provider-neutral outbound-mail integration against exact `@pegma/mail@0.1.0`.
-Its four packages remain unpublished until the deployment and hardening phases.
+Support Desk is published and usable. Its four packages —
+`@pegma/support-desk-core`, `@pegma/support-desk-contracts`,
+`@pegma/support-desk-application`, and `@pegma/support-desk-templates` —
+are on npm at `latest=0.1.1`. The `0.x` API remains intentionally unstable.
+Email chain processing, help desk, issue tracking, and AI support bot
+integration remain later work.
 
 Webhooks Phases 1–4 are complete. `@pegma/webhooks@0.1.0` was published from a
 signed `v0.1.0` tag with trusted-publisher provenance after validation in two
