@@ -20,9 +20,10 @@ to be assembled and maintained by AI coding agents. **[pegma.dev](https://pegma.
 ## The idea
 
 Most of what a site needs has been built ten thousand times: sessions, audit
-trails, persistence, health probes, structured logging. Rebuilding them per
-project is expensive, and having an agent generate them from scratch each time
-is worse — thousands of lines of novel, unverified logic, different every run.
+trails, persistence, cache, flags, billing, health probes, structured logging.
+Rebuilding them per project is expensive, and having an agent generate them
+from scratch each time is worse — thousands of lines of novel, unverified
+logic, different every run.
 
 Pegma takes the other path. Each capability is an independent package with a
 typed contract and a published conformance suite. Building a site becomes
@@ -57,6 +58,22 @@ reused — not re-rolled per project.
 | `@pegma/rate-limit`                 | Honest two-tier request limiting                      | published   |
 | `@pegma/identity`                   | First-party identity: passkeys-first, no passwords    | published   |
 | `@pegma/mail`                       | Transactional mail: an outbox that owns no store      | published   |
+| `@pegma/cache-core`                 | Cache port                                            | published   |
+| `@pegma/cache-conformance`          | Conformance suite for cache adapters                  | published   |
+| `@pegma/cache-redis`                | Redis adapter                                         | published   |
+| `@pegma/cache-azure-redis`          | Azure Cache for Redis adapter                         | published   |
+| `@pegma/cache-elasticache`          | Amazon ElastiCache adapter                            | published   |
+| `@pegma/cache-upstash-redis`        | Upstash Redis adapter                                 | published   |
+| `@pegma/flags-contracts`            | Shared flag contracts                                 | published   |
+| `@pegma/flags-core`                 | Flag port                                             | published   |
+| `@pegma/flags-static`               | Static in-process flag adapter                        | published   |
+| `@pegma/flags-azure-appconfig`      | Azure App Configuration adapter                       | published   |
+| `@pegma/flags-aws-appconfig`        | AWS AppConfig adapter                                 | published   |
+| `@pegma/flags-cloudflare-flagship`  | Cloudflare Flagship adapter                           | published   |
+| `@pegma/flags-flagd`                | flagd adapter                                         | published   |
+| `@pegma/flags-launchdarkly`         | LaunchDarkly adapter                                  | published   |
+| `@pegma/billing-core`               | Subscription ledger, not a payment processor          | published   |
+| `@pegma/billing-stripe`             | Stripe adapter                                        | published   |
 
 Each component's `docs/PROJECT_PLAN.md` is the source of truth, and the
 [pegma.dev roadmap](https://pegma.dev/roadmap) compiles those plans at build
@@ -71,6 +88,11 @@ Authorization Core `0.1.2` package set containing
 The 2026-07-29 Storage Blobs first release published
 `@pegma/storage-blobs@0.1.0` with Azure Blob, Cloudflare R2, and S3 adapters
 at the same version (signed `v0.1.0`, trusted-publisher provenance).
+
+The 2026-08-15 0.1.1 batch published `@pegma/cache-core@0.1.1`,
+`@pegma/flags-core@0.1.1`, and `@pegma/billing-core@0.1.1` with their
+adapters and contracts. The sixteen public cache, flags, and billing
+packages are on npm at `latest=0.1.1`. `0.0.0` was bootstrap only.
 
 Support Desk now implements its customer application slice and
 provider-neutral outbound-mail integration against exact `@pegma/mail@0.1.0`.
