@@ -41,7 +41,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Write Grok API key config
-        if: ${{ secrets.XAI_API_KEY != '' }}
+        if: ${{ env.XAI_API_KEY != '' }}
         run: |
           mkdir -p "$HOME/.grok"
           cat > "$HOME/.grok/config.toml" <<'EOF'
