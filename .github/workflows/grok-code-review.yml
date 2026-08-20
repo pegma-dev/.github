@@ -4,7 +4,8 @@
 # No SuperGrok session fallback.
 #
 # First pass (opened, reopened, ready_for_review, workflow_dispatch): grok-4.6,
-# default effort, action-default max_turns (50). Do not set effort low.
+# default effort (empty input; the action adds --effort only when set),
+# max_turns 50. Do not set effort low.
 # Follow-up (synchronize): grok-build-0.1, effort low, max_turns 15. The action
 # still embeds the full PR diff; cheaper model + fewer turns is the control.
 #
