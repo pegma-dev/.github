@@ -6,8 +6,8 @@
 # First pass (opened, reopened, ready_for_review, workflow_dispatch): grok-4.6,
 # default effort (empty input; the action adds --effort only when set),
 # max_turns 50. Do not set effort low.
-# Follow-up (synchronize): grok-build-0.1, effort low, max_turns 15. The action
-# still embeds the full PR diff; cheaper model + fewer turns is the control.
+# Follow-up (synchronize): grok-4.6, effort low, max_turns 15. The action
+# still embeds the full PR diff; lower effort + fewer turns is the control.
 #
 # Concurrency is split by pass type so synchronize does not cancel an in-flight
 # first pass. cancel-in-progress stays on: first-pass events cancel each other,
@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 30
     env:
       XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-      GROK_MODEL: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'grok-build-0.1' || 'grok-4.6' }}
+      GROK_MODEL: grok-4.6
       GROK_EFFORT: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'low' || '' }}
       GROK_MAX_TURNS: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && '15' || '50' }}
       GROK_CUSTOM_INSTRUCTIONS: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'Review only the latest commit. Do not re-litigate already-posted findings.' || '' }}
@@ -68,10 +68,6 @@ jobs:
           cat > "$HOME/.grok/config.toml" <<'EOF'
           [model."grok-4.6"]
           model = "grok-4.6"
-          base_url = "https://api.x.ai/v1"
-          env_key = "XAI_API_KEY"
-          [model."grok-build-0.1"]
-          model = "grok-build-0.1"
           base_url = "https://api.x.ai/v1"
           env_key = "XAI_API_KEY"
           [models]
