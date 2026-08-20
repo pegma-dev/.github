@@ -2,6 +2,16 @@
 # Enforced via org ruleset "Require Grok code review" pointing at this file.
 # Auth: org-level XAI_API_KEY only (CLI env_key + https://api.x.ai/v1).
 # No SuperGrok session fallback.
+#
+# First pass (opened, reopened, ready_for_review, workflow_dispatch): grok-4.6,
+# default effort (empty input; the action adds --effort only when set),
+# max_turns 50. Do not set effort low.
+# Follow-up (synchronize): grok-4.6, effort low, max_turns 15. The action
+# still embeds the full PR diff; lower effort + fewer turns is the control.
+#
+# Concurrency is split by pass type so synchronize does not cancel an in-flight
+# first pass. cancel-in-progress stays on: first-pass events cancel each other,
+# and synchronize follow-ups cancel each other.
 name: Grok code review
 
 on:
@@ -20,7 +30,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: grok-code-review-${{ github.repository }}-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  group: grok-code-review-${{ github.repository }}-${{ github.event.pull_request.number || github.event.inputs.pr_number }}-${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'follow-up' || 'first-pass' }}
   cancel-in-progress: true
 
 jobs:
@@ -33,6 +43,10 @@ jobs:
     timeout-minutes: 30
     env:
       XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      GROK_MODEL: grok-4.6
+      GROK_EFFORT: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'low' || '' }}
+      GROK_MAX_TURNS: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && '15' || '50' }}
+      GROK_CUSTOM_INSTRUCTIONS: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'Review only the latest commit. Do not re-litigate already-posted findings.' || '' }}
     steps:
       - name: Checkout PR head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -69,7 +83,10 @@ jobs:
           grok_auth_json: "{}"
           github_token: ${{ github.token }}
           pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
-          model: grok-4.6
+          model: ${{ env.GROK_MODEL }}
+          effort: ${{ env.GROK_EFFORT }}
+          max_turns: ${{ env.GROK_MAX_TURNS }}
+          custom_instructions: ${{ env.GROK_CUSTOM_INSTRUCTIONS }}
           roast_level: professional
           fail_on: never
           status_comments: "true"
@@ -82,6 +99,9 @@ jobs:
             echo ""
             echo "| Field | Value |"
             echo "| --- | --- |"
+            echo "| Model | \`${{ env.GROK_MODEL }}\` |"
+            echo "| Effort | \`${{ env.GROK_EFFORT }}\` |"
+            echo "| Max turns | \`${{ env.GROK_MAX_TURNS }}\` |"
             echo "| Verdict | \`${{ steps.grok.outputs.verdict }}\` |"
             echo "| Issues | \`${{ steps.grok.outputs.issue_count }}\` |"
             echo "| Bugs | \`${{ steps.grok.outputs.bug_count }}\` |"
