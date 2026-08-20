@@ -5,8 +5,11 @@
 #
 # First pass (opened, reopened, ready_for_review, workflow_dispatch): grok-4.6,
 # default effort, action-default max_turns (50). Do not set effort low.
-# Follow-up (synchronize): grok-build-0.1, effort low, max_turns 15. The action
-# still embeds the full PR diff; cheaper model + fewer turns is the control.
+# Follow-up (synchronize, and only if a prior Grok review already completed):
+# grok-build-0.1, effort low, max_turns 15. The action still embeds the full
+# PR diff; cheaper model + fewer turns is the control.
+# A synchronize that cancels an in-flight first pass stays on grok-4.6 unless
+# a completed Grok status comment or review already exists on the PR.
 name: Grok code review
 
 on:
@@ -38,10 +41,6 @@ jobs:
     timeout-minutes: 30
     env:
       XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-      GROK_MODEL: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'grok-build-0.1' || 'grok-4.6' }}
-      GROK_EFFORT: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'low' || '' }}
-      GROK_MAX_TURNS: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && '15' || '50' }}
-      GROK_CUSTOM_INSTRUCTIONS: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'Review only the latest commit. Do not re-litigate already-posted findings.' || '' }}
     steps:
       - name: Checkout PR head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -54,6 +53,40 @@ jobs:
           if [ -z "${XAI_API_KEY}" ]; then
             echo "::error::XAI_API_KEY is empty. Set the org-level XAI_API_KEY secret. This workflow does not fall back to SuperGrok session auth."
             exit 1
+          fi
+
+      - name: Choose review pass
+        id: pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          IS_SYNC: ${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}
+        run: |
+          follow_up=false
+          if [ "$IS_SYNC" = "true" ]; then
+            comments="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              --jq '.[] | select(.body != null) | select(.body | contains("<!-- grok-build-review -->")) | select((.body | contains("no issues")) or (.body | test("issue[s]? found"))) | .id' \
+              || true)"
+            reviews="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+              --jq '.[] | select(.body != null) | select(.body | contains("Grok Build Review")) | select(.state == "COMMENTED" or .state == "APPROVED" or .state == "CHANGES_REQUESTED") | .id' \
+              || true)"
+            if [ -n "$comments" ] || [ -n "$reviews" ]; then
+              follow_up=true
+            fi
+          fi
+
+          if [ "$follow_up" = "true" ]; then
+            echo "Follow-up path: prior Grok review exists; synchronize uses grok-build-0.1."
+            echo "model=grok-build-0.1" >> "$GITHUB_OUTPUT"
+            echo "effort=low" >> "$GITHUB_OUTPUT"
+            echo "max_turns=15" >> "$GITHUB_OUTPUT"
+            echo "custom_instructions=Review only the latest commit. Do not re-litigate already-posted findings." >> "$GITHUB_OUTPUT"
+          else
+            echo "First-pass path: grok-4.6 (event is not synchronize, or no completed Grok review yet)."
+            echo "model=grok-4.6" >> "$GITHUB_OUTPUT"
+            echo "effort=" >> "$GITHUB_OUTPUT"
+            echo "max_turns=50" >> "$GITHUB_OUTPUT"
+            echo "custom_instructions=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Write Grok API key config
@@ -82,10 +115,10 @@ jobs:
           grok_auth_json: "{}"
           github_token: ${{ github.token }}
           pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
-          model: ${{ env.GROK_MODEL }}
-          effort: ${{ env.GROK_EFFORT }}
-          max_turns: ${{ env.GROK_MAX_TURNS }}
-          custom_instructions: ${{ env.GROK_CUSTOM_INSTRUCTIONS }}
+          model: ${{ steps.pass.outputs.model }}
+          effort: ${{ steps.pass.outputs.effort }}
+          max_turns: ${{ steps.pass.outputs.max_turns }}
+          custom_instructions: ${{ steps.pass.outputs.custom_instructions }}
           roast_level: professional
           fail_on: never
           status_comments: "true"
@@ -98,9 +131,9 @@ jobs:
             echo ""
             echo "| Field | Value |"
             echo "| --- | --- |"
-            echo "| Model | \`${{ env.GROK_MODEL }}\` |"
-            echo "| Effort | \`${{ env.GROK_EFFORT }}\` |"
-            echo "| Max turns | \`${{ env.GROK_MAX_TURNS }}\` |"
+            echo "| Model | \`${{ steps.pass.outputs.model }}\` |"
+            echo "| Effort | \`${{ steps.pass.outputs.effort }}\` |"
+            echo "| Max turns | \`${{ steps.pass.outputs.max_turns }}\` |"
             echo "| Verdict | \`${{ steps.grok.outputs.verdict }}\` |"
             echo "| Issues | \`${{ steps.grok.outputs.issue_count }}\` |"
             echo "| Bugs | \`${{ steps.grok.outputs.bug_count }}\` |"
