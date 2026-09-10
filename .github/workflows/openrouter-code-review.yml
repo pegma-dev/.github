@@ -3,22 +3,29 @@
 # file, so every pegma-dev repository (including new ones) gets it without a
 # per-repo workflow. Auth: org-level OPENROUTER_API_KEY secret only.
 #
-# Two cheap review lanes run in parallel and the default judge
-# (openai/gpt-5.6-luna) union-merges their findings into one review:
+# Two cheap review lanes run in parallel and the pinned judge union-merges
+# their findings into one review:
 #   meta/muse-spark-1.2   (Meta Muse Spark 1.2)
 #   z-ai/glm-5.3-flash    (Z.ai GLM 5.3 Flash)
+#   judge: openai/gpt-5.6-luna
 #
 # First pass (opened, reopened, ready_for_review, workflow_dispatch): full-PR
 # review, 50 read-only tool rounds. Follow-up (synchronize): latest-commit
-# verify round against the existing ledger, 30 tool rounds.
+# round against the existing ledger, 30 tool rounds.
 #
-# Concurrency is split by pass type so synchronize does not cancel an in-flight
-# first pass. fail_on stays "never": this is a reviewer, not a merge gate; the
-# ruleset only requires the workflow to complete.
+# The job always runs and always succeeds; only the review steps are gated.
+# Ruleset-triggered runs ignore the `types:` filter below and fire only on
+# the default activity types (opened, synchronize, reopened), and fork /
+# Dependabot PRs never receive the org secret, so a job-level skip or a hard
+# failure in those cases would leave the required check unsatisfied or red.
+# Drafts are reviewed like any other PR: the ruleset never sends
+# ready_for_review, and a latest-commit follow-up is refused when no initial
+# review exists, so skipping drafts would strand them. fail_on stays "never":
+# this is a reviewer, not a merge gate; the ruleset only requires the
+# workflow to complete.
 #
-# Fork and Dependabot PRs do not receive the org secret, so the review step is
-# skipped for them and the job still succeeds, otherwise the required check
-# would block those PRs forever.
+# Concurrency is split by pass type so synchronize does not cancel an
+# in-flight first pass.
 name: OpenRouter code review
 
 on:
@@ -43,42 +50,31 @@ concurrency:
 jobs:
   review:
     name: OpenRouter review
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && !github.event.pull_request.draft)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       OR_MODELS: meta/muse-spark-1.2,z-ai/glm-5.3-flash
+      OR_JUDGE: openai/gpt-5.6-luna
       IS_FOLLOW_UP: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'true' || 'false' }}
-      # Same-repo, non-Dependabot PRs (or a manual dispatch) are eligible for
-      # a review. Fork PRs have no org secret and no write token.
+      # Eligible: a manual dispatch, or a same-repo pull_request event of a
+      # reviewable type from anyone but Dependabot. Fork PRs have no org
+      # secret and no write token; Dependabot runs get Dependabot secrets.
       REVIEW_ELIGIBLE: >-
         ${{
           (github.event_name == 'workflow_dispatch' ||
-           (github.event.pull_request.head.repo.full_name == github.repository &&
+           (github.event_name == 'pull_request' &&
+            contains(fromJSON('["opened","synchronize","reopened","ready_for_review"]'), github.event.action) &&
+            github.event.pull_request.head.repo.full_name == github.repository &&
             github.event.pull_request.user.login != 'dependabot[bot]' &&
             github.actor != 'dependabot[bot]')) && 'true' || 'false'
         }}
     steps:
-      - name: Resolve PR head
-        id: pr
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
-        run: |
-          set -euo pipefail
-          SHA="${EVENT_HEAD_SHA:-}"
-          if [ -z "$SHA" ]; then
-            SHA="$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid)"
-          fi
-          echo "head_sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-
-      - name: Skip ineligible PR
+      - name: Skip ineligible event
         if: env.REVIEW_ELIGIBLE != 'true'
-        run: echo "::notice::Fork or Dependabot PR, OpenRouter review skipped (no org secret available)."
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+        run: echo "::notice::OpenRouter review skipped for ${EVENT}/${ACTION} (fork, Dependabot, or non-review activity)."
 
       - name: Require OPENROUTER_API_KEY
         if: env.REVIEW_ELIGIBLE == 'true'
@@ -89,6 +85,31 @@ jobs:
             echo "::error::OPENROUTER_API_KEY is empty. Set the org-level OPENROUTER_API_KEY secret."
             exit 1
           fi
+
+      - name: Resolve PR head
+        if: env.REVIEW_ELIGIBLE == 'true'
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::pr_number must be a positive integer, got '${PR_NUMBER}'."
+            exit 1
+          fi
+          SHA="${EVENT_HEAD_SHA:-}"
+          if [ -z "$SHA" ]; then
+            SHA="$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid)"
+          fi
+          if [[ ! "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Could not resolve a full head SHA for PR ${PR_NUMBER}."
+            exit 1
+          fi
+          echo "head_sha=${SHA,,}" >> "$GITHUB_OUTPUT"
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Checkout PR head
         if: env.REVIEW_ELIGIBLE == 'true'
@@ -106,11 +127,13 @@ jobs:
           github_token: ${{ github.token }}
           pr_number: ${{ steps.pr.outputs.number }}
           models: ${{ env.OR_MODELS }}
+          judge_model: ${{ env.OR_JUDGE }}
           review_scope: full-pr
           review_mode: auto
           fail_on: never
           roast_level: professional
           status_comments: "true"
+          max_tool_turns: "50"
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
@@ -122,6 +145,7 @@ jobs:
           github_token: ${{ github.token }}
           pr_number: ${{ steps.pr.outputs.number }}
           models: ${{ env.OR_MODELS }}
+          judge_model: ${{ env.OR_JUDGE }}
           review_scope: latest-commit
           review_mode: auto
           fail_on: never
@@ -134,6 +158,8 @@ jobs:
       - name: Summary
         if: always()
         env:
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
           VERDICT: ${{ steps.first.outputs.verdict || steps.follow.outputs.verdict }}
           ISSUES: ${{ steps.first.outputs.issue_count || steps.follow.outputs.issue_count }}
           REVIEW_URL: ${{ steps.first.outputs.review_url || steps.follow.outputs.review_url }}
@@ -143,9 +169,11 @@ jobs:
             echo ""
             echo "| Field | Value |"
             echo "| --- | --- |"
+            echo "| Event | \`${EVENT}/${ACTION:-dispatch}\` |"
             echo "| Eligible | \`${REVIEW_ELIGIBLE}\` |"
             echo "| Pass | \`$([ "${IS_FOLLOW_UP}" = true ] && echo follow-up || echo first-pass)\` |"
             echo "| Models | \`${OR_MODELS}\` |"
+            echo "| Judge | \`${OR_JUDGE}\` |"
             echo "| Verdict | \`${VERDICT:-n/a}\` |"
             echo "| Issues | \`${ISSUES:-n/a}\` |"
             echo "| Review | ${REVIEW_URL:-n/a} |"
