@@ -9,31 +9,29 @@
 #   z-ai/glm-5.3-flash    (Z.ai GLM 5.3 Flash)
 #   judge: openai/gpt-5.6-luna
 #
-# First pass (opened, reopened, ready_for_review, workflow_dispatch): full-PR
-# review, 50 read-only tool rounds. Follow-up (synchronize): latest-commit
-# round against the existing ledger, 30 tool rounds.
+# Scope selection: a run reviews the full PR (50 read-only tool rounds)
+# unless this PR already carries a review ledger posted by the bot, in which
+# case a synchronize run reviews only the unreviewed commit range (30
+# rounds). The ledger check, not the event type, decides: the action refuses
+# a latest-commit round with no ledger, and GitHub can discard a still-queued
+# first pass when a newer run enters the same concurrency group, so deriving
+# scope from the event alone would strand a PR without an initial review.
+#
+# One concurrency group per PR with cancel-in-progress off, so runs for the
+# same PR execute one at a time and each sees the ledger the previous one
+# wrote. GitHub keeps only the newest pending run per group; with ledger-
+# based scope selection the survivor always does the right thing.
 #
 # The job always runs and only the review steps are gated, so the required
-# check stays green for events that cannot be reviewed. A missing org secret
-# warns and skips rather than failing; a reviewer outage must not block every
-# merge in the organization. The only hard failures are a malformed
-# pr_number or an unresolvable PR head, which can only happen on a manual
-# dispatch and therefore never touch a pull request's required check.
-# Ruleset-triggered runs ignore the `types:` filter below and fire only on
-# the default activity types (opened, synchronize, reopened), and fork /
-# Dependabot PRs never receive the org secret, so a job-level skip or a hard
-# failure in those cases would leave the required check unsatisfied or red.
-# Drafts are reviewed like any other PR: the ruleset never sends
-# ready_for_review, and a latest-commit follow-up is refused when no initial
-# review exists, so skipping drafts would strand them. fail_on stays "never":
-# this is a reviewer, not a merge gate; the ruleset only requires the
-# workflow to complete.
-#
-# One concurrency group per PR with cancel-in-progress off: a synchronize
-# that lands while the first pass is still running waits for it instead of
-# starting a follow-up that would be refused for lack of a ledger. GitHub
-# keeps only the newest pending run per group, and a latest-commit follow-up
-# reviews the whole unreviewed range, so superseded pending runs lose nothing.
+# check stays green for events that cannot be reviewed: ruleset-triggered
+# runs ignore the `types:` filter below and fire only on opened, synchronize,
+# and reopened; fork and Dependabot PRs never receive the org secret; drafts
+# are reviewed like any other PR because ready_for_review never arrives from
+# the ruleset. A missing org secret warns and skips. What can still turn the
+# check red: the job timeout, a checkout failure, or the action itself
+# failing (for example every lane and retry failing during an OpenRouter
+# outage). Those are accepted; organization admins bypass the ruleset, and
+# fail_on stays "never" so review findings are never a merge gate.
 name: OpenRouter code review
 
 on:
@@ -63,7 +61,10 @@ jobs:
     env:
       OR_MODELS: meta/muse-spark-1.2,z-ai/glm-5.3-flash
       OR_JUDGE: openai/gpt-5.6-luna
-      IS_FOLLOW_UP: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'true' || 'false' }}
+      # Must match the posting identity (github.token posts as github-actions[bot]).
+      BOT_LOGIN: github-actions[bot]
+      # Hidden marker the action embeds in every review body that carries loop state.
+      LEDGER_MARKER: "<!-- openrouter-review-ledger:v1:"
       # Eligible: a manual dispatch, or a same-repo pull_request event of a
       # reviewable type from anyone but Dependabot. Fork PRs have no org
       # secret and no write token; Dependabot runs get Dependabot secrets.
@@ -97,12 +98,13 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Resolve PR head
+      - name: Resolve PR head and review scope
         if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true'
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          EVENT_ACTION: ${{ github.event.action }}
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
         run: |
@@ -119,8 +121,29 @@ jobs:
             echo "::error::Could not resolve a full head SHA for PR ${PR_NUMBER}."
             exit 1
           fi
-          echo "head_sha=${SHA,,}" >> "$GITHUB_OUTPUT"
-          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          # A synchronize run may only narrow to the latest commits when the
+          # bot has already posted loop state on this PR; otherwise it is the
+          # initial full-PR review regardless of the event that started it.
+          SCOPE=full-pr
+          TURNS=50
+          if [ "${EVENT_ACTION}" = "synchronize" ]; then
+            # jq reads BOT_LOGIN and LEDGER_MARKER from the environment.
+            LEDGERS="$(gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/reviews" \
+              --jq '[.[] | select(.user.login == env.BOT_LOGIN) | .body // "" | select(contains(env.LEDGER_MARKER))] | length' \
+              | awk '{s+=$1} END {print s+0}')"
+            if [ "${LEDGERS}" -gt 0 ]; then
+              SCOPE=latest-commit
+              TURNS=30
+            else
+              echo "::notice::No prior review ledger on PR ${PR_NUMBER}; running the initial full-PR review."
+            fi
+          fi
+          {
+            echo "head_sha=${SHA,,}"
+            echo "number=${PR_NUMBER}"
+            echo "scope=${SCOPE}"
+            echo "turns=${TURNS}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout PR head
         if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true'
@@ -130,39 +153,22 @@ jobs:
           fetch-depth: 0
           ref: ${{ steps.pr.outputs.head_sha }}
 
-      - name: Run OpenRouter review (first pass)
-        if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true' && env.IS_FOLLOW_UP != 'true'
-        id: first
+      - name: Run OpenRouter review
+        if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true'
+        id: review
         uses: FlyOverCoderKY/openrouter-pr-review-action@4471f5963751223c26a2e169d78c0f13817165aa # main 2026-09-09
         with:
           github_token: ${{ github.token }}
           pr_number: ${{ steps.pr.outputs.number }}
+          bot_login: ${{ env.BOT_LOGIN }}
           models: ${{ env.OR_MODELS }}
           judge_model: ${{ env.OR_JUDGE }}
-          review_scope: full-pr
+          review_scope: ${{ steps.pr.outputs.scope }}
           review_mode: auto
           fail_on: never
           roast_level: professional
           status_comments: "true"
-          max_tool_turns: "50"
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-
-      - name: Run OpenRouter review (follow-up)
-        if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true' && env.IS_FOLLOW_UP == 'true'
-        id: follow
-        uses: FlyOverCoderKY/openrouter-pr-review-action@4471f5963751223c26a2e169d78c0f13817165aa # main 2026-09-09
-        with:
-          github_token: ${{ github.token }}
-          pr_number: ${{ steps.pr.outputs.number }}
-          models: ${{ env.OR_MODELS }}
-          judge_model: ${{ env.OR_JUDGE }}
-          review_scope: latest-commit
-          review_mode: auto
-          fail_on: never
-          roast_level: professional
-          status_comments: "true"
-          max_tool_turns: "30"
+          max_tool_turns: ${{ steps.pr.outputs.turns }}
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
@@ -172,9 +178,10 @@ jobs:
           EVENT: ${{ github.event_name }}
           ACTION: ${{ github.event.action }}
           KEY_PRESENT: ${{ steps.key.outputs.present }}
-          VERDICT: ${{ steps.first.outputs.verdict || steps.follow.outputs.verdict }}
-          ISSUES: ${{ steps.first.outputs.issue_count || steps.follow.outputs.issue_count }}
-          REVIEW_URL: ${{ steps.first.outputs.review_url || steps.follow.outputs.review_url }}
+          SCOPE: ${{ steps.pr.outputs.scope }}
+          VERDICT: ${{ steps.review.outputs.verdict }}
+          ISSUES: ${{ steps.review.outputs.issue_count }}
+          REVIEW_URL: ${{ steps.review.outputs.review_url }}
         run: |
           {
             echo "### OpenRouter code review"
@@ -184,7 +191,7 @@ jobs:
             echo "| Event | \`${EVENT}/${ACTION:-dispatch}\` |"
             echo "| Eligible | \`${REVIEW_ELIGIBLE}\` |"
             echo "| Secret present | \`${KEY_PRESENT:-n/a}\` |"
-            echo "| Pass | \`$([ "${IS_FOLLOW_UP}" = true ] && echo follow-up || echo first-pass)\` |"
+            echo "| Scope | \`${SCOPE:-n/a}\` |"
             echo "| Models | \`${OR_MODELS}\` |"
             echo "| Judge | \`${OR_JUDGE}\` |"
             echo "| Verdict | \`${VERDICT:-n/a}\` |"
