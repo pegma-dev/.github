@@ -13,7 +13,12 @@
 # review, 50 read-only tool rounds. Follow-up (synchronize): latest-commit
 # round against the existing ledger, 30 tool rounds.
 #
-# The job always runs and always succeeds; only the review steps are gated.
+# The job always runs and only the review steps are gated, so the required
+# check stays green for events that cannot be reviewed. A missing org secret
+# warns and skips rather than failing; a reviewer outage must not block every
+# merge in the organization. The only hard failures are a malformed
+# pr_number or an unresolvable PR head, which can only happen on a manual
+# dispatch and therefore never touch a pull request's required check.
 # Ruleset-triggered runs ignore the `types:` filter below and fire only on
 # the default activity types (opened, synchronize, reopened), and fork /
 # Dependabot PRs never receive the org secret, so a job-level skip or a hard
@@ -24,8 +29,11 @@
 # this is a reviewer, not a merge gate; the ruleset only requires the
 # workflow to complete.
 #
-# Concurrency is split by pass type so synchronize does not cancel an
-# in-flight first pass.
+# One concurrency group per PR with cancel-in-progress off: a synchronize
+# that lands while the first pass is still running waits for it instead of
+# starting a follow-up that would be refused for lack of a ledger. GitHub
+# keeps only the newest pending run per group, and a latest-commit follow-up
+# reviews the whole unreviewed range, so superseded pending runs lose nothing.
 name: OpenRouter code review
 
 on:
@@ -44,8 +52,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: openrouter-code-review-${{ github.repository }}-${{ github.event.pull_request.number || github.event.inputs.pr_number }}-${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'follow-up' || 'first-pass' }}
-  cancel-in-progress: true
+  group: openrouter-code-review-${{ github.repository }}-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: false
 
 jobs:
   review:
@@ -76,18 +84,21 @@ jobs:
           ACTION: ${{ github.event.action }}
         run: echo "::notice::OpenRouter review skipped for ${EVENT}/${ACTION} (fork, Dependabot, or non-review activity)."
 
-      - name: Require OPENROUTER_API_KEY
+      - name: Check OPENROUTER_API_KEY
         if: env.REVIEW_ELIGIBLE == 'true'
+        id: key
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           if [ -z "${OPENROUTER_API_KEY}" ]; then
-            echo "::error::OPENROUTER_API_KEY is empty. Set the org-level OPENROUTER_API_KEY secret."
-            exit 1
+            echo "::warning::OPENROUTER_API_KEY is empty; review skipped. Set the org-level OPENROUTER_API_KEY secret with visibility to this repository."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Resolve PR head
-        if: env.REVIEW_ELIGIBLE == 'true'
+        if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true'
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
@@ -112,7 +123,7 @@ jobs:
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Checkout PR head
-        if: env.REVIEW_ELIGIBLE == 'true'
+        if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -120,7 +131,7 @@ jobs:
           ref: ${{ steps.pr.outputs.head_sha }}
 
       - name: Run OpenRouter review (first pass)
-        if: env.REVIEW_ELIGIBLE == 'true' && env.IS_FOLLOW_UP != 'true'
+        if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true' && env.IS_FOLLOW_UP != 'true'
         id: first
         uses: FlyOverCoderKY/openrouter-pr-review-action@4471f5963751223c26a2e169d78c0f13817165aa # main 2026-09-09
         with:
@@ -138,7 +149,7 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
       - name: Run OpenRouter review (follow-up)
-        if: env.REVIEW_ELIGIBLE == 'true' && env.IS_FOLLOW_UP == 'true'
+        if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true' && env.IS_FOLLOW_UP == 'true'
         id: follow
         uses: FlyOverCoderKY/openrouter-pr-review-action@4471f5963751223c26a2e169d78c0f13817165aa # main 2026-09-09
         with:
@@ -160,6 +171,7 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           ACTION: ${{ github.event.action }}
+          KEY_PRESENT: ${{ steps.key.outputs.present }}
           VERDICT: ${{ steps.first.outputs.verdict || steps.follow.outputs.verdict }}
           ISSUES: ${{ steps.first.outputs.issue_count || steps.follow.outputs.issue_count }}
           REVIEW_URL: ${{ steps.first.outputs.review_url || steps.follow.outputs.review_url }}
@@ -171,6 +183,7 @@ jobs:
             echo "| --- | --- |"
             echo "| Event | \`${EVENT}/${ACTION:-dispatch}\` |"
             echo "| Eligible | \`${REVIEW_ELIGIBLE}\` |"
+            echo "| Secret present | \`${KEY_PRESENT:-n/a}\` |"
             echo "| Pass | \`$([ "${IS_FOLLOW_UP}" = true ] && echo follow-up || echo first-pass)\` |"
             echo "| Models | \`${OR_MODELS}\` |"
             echo "| Judge | \`${OR_JUDGE}\` |"
