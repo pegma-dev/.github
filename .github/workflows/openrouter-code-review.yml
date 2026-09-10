@@ -1,0 +1,152 @@
+# Organization-required OpenRouter PR review.
+# Enforced via org ruleset "Require OpenRouter code review" pointing at this
+# file, so every pegma-dev repository (including new ones) gets it without a
+# per-repo workflow. Auth: org-level OPENROUTER_API_KEY secret only.
+#
+# Two cheap review lanes run in parallel and the default judge
+# (openai/gpt-5.6-luna) union-merges their findings into one review:
+#   meta/muse-spark-1.2   (Meta Muse Spark 1.2)
+#   z-ai/glm-5.3-flash    (Z.ai GLM 5.3 Flash)
+#
+# First pass (opened, reopened, ready_for_review, workflow_dispatch): full-PR
+# review, 50 read-only tool rounds. Follow-up (synchronize): latest-commit
+# verify round against the existing ledger, 30 tool rounds.
+#
+# Concurrency is split by pass type so synchronize does not cancel an in-flight
+# first pass. fail_on stays "never": this is a reviewer, not a merge gate; the
+# ruleset only requires the workflow to complete.
+#
+# Fork and Dependabot PRs do not receive the org secret, so the review step is
+# skipped for them and the job still succeeds, otherwise the required check
+# would block those PRs forever.
+name: OpenRouter code review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Optional manual re-run from the Actions tab on a PR's head repo
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to review
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: openrouter-code-review-${{ github.repository }}-${{ github.event.pull_request.number || github.event.inputs.pr_number }}-${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'follow-up' || 'first-pass' }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: OpenRouter review
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      OR_MODELS: meta/muse-spark-1.2,z-ai/glm-5.3-flash
+      IS_FOLLOW_UP: ${{ (github.event_name == 'pull_request' && github.event.action == 'synchronize') && 'true' || 'false' }}
+      # Same-repo, non-Dependabot PRs (or a manual dispatch) are eligible for
+      # a review. Fork PRs have no org secret and no write token.
+      REVIEW_ELIGIBLE: >-
+        ${{
+          (github.event_name == 'workflow_dispatch' ||
+           (github.event.pull_request.head.repo.full_name == github.repository &&
+            github.event.pull_request.user.login != 'dependabot[bot]' &&
+            github.actor != 'dependabot[bot]')) && 'true' || 'false'
+        }}
+    steps:
+      - name: Resolve PR head
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          SHA="${EVENT_HEAD_SHA:-}"
+          if [ -z "$SHA" ]; then
+            SHA="$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid)"
+          fi
+          echo "head_sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Skip ineligible PR
+        if: env.REVIEW_ELIGIBLE != 'true'
+        run: echo "::notice::Fork or Dependabot PR, OpenRouter review skipped (no org secret available)."
+
+      - name: Require OPENROUTER_API_KEY
+        if: env.REVIEW_ELIGIBLE == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [ -z "${OPENROUTER_API_KEY}" ]; then
+            echo "::error::OPENROUTER_API_KEY is empty. Set the org-level OPENROUTER_API_KEY secret."
+            exit 1
+          fi
+
+      - name: Checkout PR head
+        if: env.REVIEW_ELIGIBLE == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ steps.pr.outputs.head_sha }}
+
+      - name: Run OpenRouter review (first pass)
+        if: env.REVIEW_ELIGIBLE == 'true' && env.IS_FOLLOW_UP != 'true'
+        id: first
+        uses: FlyOverCoderKY/openrouter-pr-review-action@4471f5963751223c26a2e169d78c0f13817165aa # main 2026-09-09
+        with:
+          github_token: ${{ github.token }}
+          pr_number: ${{ steps.pr.outputs.number }}
+          models: ${{ env.OR_MODELS }}
+          review_scope: full-pr
+          review_mode: auto
+          fail_on: never
+          roast_level: professional
+          status_comments: "true"
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+      - name: Run OpenRouter review (follow-up)
+        if: env.REVIEW_ELIGIBLE == 'true' && env.IS_FOLLOW_UP == 'true'
+        id: follow
+        uses: FlyOverCoderKY/openrouter-pr-review-action@4471f5963751223c26a2e169d78c0f13817165aa # main 2026-09-09
+        with:
+          github_token: ${{ github.token }}
+          pr_number: ${{ steps.pr.outputs.number }}
+          models: ${{ env.OR_MODELS }}
+          review_scope: latest-commit
+          review_mode: auto
+          fail_on: never
+          roast_level: professional
+          status_comments: "true"
+          max_tool_turns: "30"
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+      - name: Summary
+        if: always()
+        env:
+          VERDICT: ${{ steps.first.outputs.verdict || steps.follow.outputs.verdict }}
+          ISSUES: ${{ steps.first.outputs.issue_count || steps.follow.outputs.issue_count }}
+          REVIEW_URL: ${{ steps.first.outputs.review_url || steps.follow.outputs.review_url }}
+        run: |
+          {
+            echo "### OpenRouter code review"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Eligible | \`${REVIEW_ELIGIBLE}\` |"
+            echo "| Pass | \`$([ "${IS_FOLLOW_UP}" = true ] && echo follow-up || echo first-pass)\` |"
+            echo "| Models | \`${OR_MODELS}\` |"
+            echo "| Verdict | \`${VERDICT:-n/a}\` |"
+            echo "| Issues | \`${ISSUES:-n/a}\` |"
+            echo "| Review | ${REVIEW_URL:-n/a} |"
+          } >> "$GITHUB_STEP_SUMMARY"
