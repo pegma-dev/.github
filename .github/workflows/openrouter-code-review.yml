@@ -9,13 +9,14 @@
 #   z-ai/glm-5.3-flash    (Z.ai GLM 5.3 Flash)
 #   judge: openai/gpt-5.6-luna
 #
-# Scope selection: a run reviews the full PR (50 read-only tool rounds)
-# unless this PR already carries a review ledger posted by the bot, in which
-# case a synchronize run reviews only the unreviewed commit range (30
-# rounds). The ledger check, not the event type, decides: the action refuses
-# a latest-commit round with no ledger, and GitHub can discard a still-queued
-# first pass when a newer run enters the same concurrency group, so deriving
-# scope from the event alone would strand a PR without an initial review.
+# Scope selection: opened, reopened, and manual runs always review the full
+# PR (50 read-only tool rounds). A synchronize run reviews only the
+# unreviewed commit range (30 rounds) when this PR already carries a review
+# ledger posted by the bot, and otherwise performs the full-PR review
+# itself. The action refuses a latest-commit round with no ledger, and
+# GitHub can discard a still-queued first pass when a newer run enters the
+# same concurrency group, so a synchronize must never assume a ledger
+# exists. If the ledger probe itself fails, the run falls back to full-pr.
 #
 # One concurrency group per PR with cancel-in-progress off, so runs for the
 # same PR execute one at a time and each sees the ledger the previous one
@@ -127,10 +128,16 @@ jobs:
           SCOPE=full-pr
           TURNS=50
           if [ "${EVENT_ACTION}" = "synchronize" ]; then
-            # jq reads BOT_LOGIN and LEDGER_MARKER from the environment.
+            # jq reads BOT_LOGIN and LEDGER_MARKER from the environment. A
+            # probe failure (API error) must not fail the required check:
+            # fall back to the full-PR review, which is always valid.
             LEDGERS="$(gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/reviews" \
               --jq '[.[] | select(.user.login == env.BOT_LOGIN) | .body // "" | select(contains(env.LEDGER_MARKER))] | length' \
-              | awk '{s+=$1} END {print s+0}')"
+              | awk '{s+=$1} END {print s+0}' || true)"
+            if [[ ! "${LEDGERS}" =~ ^[0-9]+$ ]]; then
+              echo "::warning::Ledger probe failed for PR ${PR_NUMBER}; falling back to the full-PR review."
+              LEDGERS=0
+            fi
             if [ "${LEDGERS}" -gt 0 ]; then
               SCOPE=latest-commit
               TURNS=30
