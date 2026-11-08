@@ -179,7 +179,9 @@ jobs:
           roast_level: professional
           status_comments: "true"
           max_tool_turns: ${{ steps.pr.outputs.turns }}
-          # Allow bounded repository overrides for large full-PR reviews.
+          # Configure this on the target repository, not organization-wide.
+          # Keep review budgets modest (e.g. 512 KiB); the action validates
+          # positive integers.
           max_diff_kb: ${{ vars.OPENROUTER_MAX_DIFF_KB || '300' }}
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -191,6 +193,7 @@ jobs:
           ACTION: ${{ github.event.action }}
           KEY_PRESENT: ${{ steps.key.outputs.present }}
           SCOPE: ${{ steps.pr.outputs.scope }}
+          MAX_DIFF_KB: ${{ vars.OPENROUTER_MAX_DIFF_KB || '300' }}
           VERDICT: ${{ steps.review.outputs.verdict }}
           ISSUES: ${{ steps.review.outputs.issue_count }}
           REVIEW_URL: ${{ steps.review.outputs.review_url }}
@@ -204,6 +207,7 @@ jobs:
             echo "| Eligible | \`${REVIEW_ELIGIBLE}\` |"
             echo "| Secret present | \`${KEY_PRESENT:-n/a}\` |"
             echo "| Scope | \`${SCOPE:-n/a}\` |"
+            echo "| Diff budget (KiB) | \`${MAX_DIFF_KB}\` |"
             echo "| Models | \`${OR_MODELS}\` |"
             echo "| Requested routes | \`${OR_MODEL_ROUTES}\` |"
             echo "| Judge | \`${OR_JUDGE}\` |"
