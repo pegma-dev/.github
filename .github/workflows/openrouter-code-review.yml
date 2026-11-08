@@ -5,7 +5,7 @@
 #
 # Two review lanes run in parallel and the pinned judge union-merges
 # their findings into one review:
-#   openai/gpt-6.1-sol   (GPT-6.1 Sol, Azure US ZDR)
+#   openai/gpt-6.1-sol    (GPT-6.1 Sol, Azure US ZDR)
 #   z-ai/glm-5.3-flash    (Z.ai GLM 5.3 Flash)
 #   judge: openai/gpt-5.6-luna
 #
@@ -61,6 +61,8 @@ jobs:
     timeout-minutes: 30
     env:
       OR_MODELS: openai/gpt-6.1-sol,z-ai/glm-5.3-flash
+      # Keep the route key aligned with the primary lane in OR_MODELS.
+      OR_MODEL_ROUTES: '{"openai/gpt-6.1-sol":{"provider":"azure/us"}}'
       OR_JUDGE: openai/gpt-5.6-luna
       # Must match the posting identity (github.token posts as github-actions[bot]).
       BOT_LOGIN: github-actions[bot]
@@ -163,13 +165,13 @@ jobs:
       - name: Run OpenRouter review
         if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true'
         id: review
-        uses: FlyOverCoderKY/openrouter-pr-review-action@0d6a05e41616281368c1f6bb7fb5a47ddf41375d # action#47 Sol Azure US ZDR
+        uses: FlyOverCoderKY/openrouter-pr-review-action@0d6a05e41616281368c1f6bb7fb5a47ddf41375d # main 2026-11-07; action#47 Sol Azure US ZDR
         with:
           github_token: ${{ github.token }}
           pr_number: ${{ steps.pr.outputs.number }}
           bot_login: ${{ env.BOT_LOGIN }}
           models: ${{ env.OR_MODELS }}
-          model_routes: '{"openai/gpt-6.1-sol":{"provider":"azure/us"}}'
+          model_routes: ${{ env.OR_MODEL_ROUTES }}
           judge_model: ${{ env.OR_JUDGE }}
           review_scope: ${{ steps.pr.outputs.scope }}
           review_mode: auto
@@ -201,6 +203,7 @@ jobs:
             echo "| Secret present | \`${KEY_PRESENT:-n/a}\` |"
             echo "| Scope | \`${SCOPE:-n/a}\` |"
             echo "| Models | \`${OR_MODELS}\` |"
+            echo "| Requested routes | \`${OR_MODEL_ROUTES}\` |"
             echo "| Judge | \`${OR_JUDGE}\` |"
             echo "| Verdict | \`${VERDICT:-n/a}\` |"
             echo "| Issues | \`${ISSUES:-n/a}\` |"
