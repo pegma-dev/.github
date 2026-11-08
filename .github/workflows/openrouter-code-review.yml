@@ -3,9 +3,9 @@
 # file, so every pegma-dev repository (including new ones) gets it without a
 # per-repo workflow. Auth: org-level OPENROUTER_API_KEY secret only.
 #
-# Two cheap review lanes run in parallel and the pinned judge union-merges
+# Two review lanes run in parallel and the pinned judge union-merges
 # their findings into one review:
-#   meta/muse-spark-1.2   (Meta Muse Spark 1.2)
+#   openai/gpt-6.1-sol   (GPT-6.1 Sol, Azure US ZDR)
 #   z-ai/glm-5.3-flash    (Z.ai GLM 5.3 Flash)
 #   judge: openai/gpt-5.6-luna
 #
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      OR_MODELS: meta/muse-spark-1.2,z-ai/glm-5.3-flash
+      OR_MODELS: openai/gpt-6.1-sol,z-ai/glm-5.3-flash
       OR_JUDGE: openai/gpt-5.6-luna
       # Must match the posting identity (github.token posts as github-actions[bot]).
       BOT_LOGIN: github-actions[bot]
@@ -163,12 +163,13 @@ jobs:
       - name: Run OpenRouter review
         if: env.REVIEW_ELIGIBLE == 'true' && steps.key.outputs.present == 'true'
         id: review
-        uses: FlyOverCoderKY/openrouter-pr-review-action@4471f5963751223c26a2e169d78c0f13817165aa # main 2026-09-09
+        uses: FlyOverCoderKY/openrouter-pr-review-action@0d6a05e41616281368c1f6bb7fb5a47ddf41375d # action#47 Sol Azure US ZDR
         with:
           github_token: ${{ github.token }}
           pr_number: ${{ steps.pr.outputs.number }}
           bot_login: ${{ env.BOT_LOGIN }}
           models: ${{ env.OR_MODELS }}
+          model_routes: '{"openai/gpt-6.1-sol":{"provider":"azure/us"}}'
           judge_model: ${{ env.OR_JUDGE }}
           review_scope: ${{ steps.pr.outputs.scope }}
           review_mode: auto
