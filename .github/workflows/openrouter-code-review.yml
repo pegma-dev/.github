@@ -179,6 +179,8 @@ jobs:
           roast_level: professional
           status_comments: "true"
           max_tool_turns: ${{ steps.pr.outputs.turns }}
+          # Allow bounded repository overrides for large full-PR reviews.
+          max_diff_kb: ${{ vars.OPENROUTER_MAX_DIFF_KB || '300' }}
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
